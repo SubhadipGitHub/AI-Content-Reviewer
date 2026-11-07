@@ -228,3 +228,63 @@ export function genericBinaryScan(bytes, source) {
   if (c.info) meta.c2pa = c.info;
   return { findings: out, meta };
 }
+
+// ───────── China TC260 AIGC implicit label (GB 45438-2025) ─────────
+const TC260_FIELDS = ['Label', 'ContentProducer', 'ProduceID', 'ContentPropagator', 'PropagateID', 'ServiceProvider', 'ServiceUser'];
+const TC260_PRODUCERS = [
+  [/doubao|豆包|001191110102MACQD9K6/i, 'Doubao (ByteDance)'],
+  [/jimeng|即梦/i, 'Jimeng (ByteDance)'],
+  [/kling|可灵|kuaishou|快手/i, 'Kling (Kuaishou)'],
+  [/qwen|tongyi|通义|千问|alibaba|阿里/i, 'Qwen / Tongyi (Alibaba)'],
+  [/腾讯|tencent|yuanbao|元宝|hunyuan|混元/i, 'Tencent (Hunyuan / Yuanbao)'],
+  [/baidu|百度|ernie|文心/i, 'Baidu (ERNIE)'],
+  [/hailuo|海螺|minimax/i, 'Hailuo (MiniMax)'],
+  [/picwish/i, 'PicWish'],
+];
+
+function decodeXmlEntities(s) {
+  return s.replace(/&quot;|&#34;|&#x22;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+function firstJsonObject(s) {
+  const start = s.indexOf('{');
+  if (start < 0 || start > 48) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) { try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; } }
+  }
+  return null;
+}
+
+/** Find a TC260 AIGC label in raw bytes or text (XMP element/attribute, PNG chunk, EXIF JSON, bare AIGC{…}). */
+export function checkAigcLabel(bytesOrText, source) {
+  const text = typeof bytesOrText === 'string' ? bytesOrText : decodeUtf8(bytesOrText.subarray(0, Math.min(bytesOrText.length, 8 << 20)));
+  const re = /AIGC/g;
+  let m, tries = 0;
+  while ((m = re.exec(text)) && tries++ < 40) {
+    const obj = firstJsonObject(decodeXmlEntities(text.slice(m.index + 4, m.index + 3000)));
+    const label = obj && (obj.AIGC && typeof obj.AIGC === 'object' ? obj.AIGC : obj);
+    if (!label || typeof label !== 'object' || !TC260_FIELDS.some((f) => f in label)) continue;
+    const producer = String(label.ContentProducer || label.ServiceProvider || '');
+    const named = TC260_PRODUCERS.find(([r]) => r.test(producer))?.[1];
+    const isAi = String(label.Label ?? '1') !== '3';
+    return [finding({
+      id: 'prov.tc260', category: 'provenance', strength: isAi ? 'strong' : 'moderate',
+      title: `China AIGC label${named ? ` — ${named}` : ''}`,
+      detail: [
+        `Label: ${label.Label ?? '—'}${String(label.Label) === '1' ? ' (AI-generated)' : String(label.Label) === '2' ? ' (possibly AI-generated)' : ''}`,
+        producer && `Content producer: ${producer}`,
+        label.ProduceID && `Production ID: ${label.ProduceID}`,
+        label.ContentPropagator && `Propagator: ${label.ContentPropagator}`,
+      ].filter(Boolean).join('\n'),
+      why: 'Since September 2025, Chinese law (GB 45438-2025) requires AI services such as Doubao, Jimeng, Kling, Qwen and Hunyuan to embed this "AIGC" label in the metadata of everything they generate.',
+      evidence: [{ text: JSON.stringify(label).slice(0, 400) }],
+      location: source,
+    })];
+  }
+  return [];
+}

@@ -1,7 +1,8 @@
 // Synthetic sample files that demonstrate each detector. Generated on demand, so the
 // app ships no binary fixtures and the same files drive the unit tests.
 
-import { png, jpegWithSegments, xmpSegment, exifSegment, pdf, docx, xlsx, zip } from './builders.js';
+import { png, jpegWithSegments, xmpSegment, exifSegment, pdf, docx, xlsx, zip, pngFromRGBA, proceduralRGBA } from './builders.js';
+import { geminiTemplates } from '../scan/detectors/visible-marks.js';
 import { SEED_JPEG_B64 } from './seed-jpeg.js';
 import { encodeUtf8 } from '../lib/bytes.js';
 
@@ -75,6 +76,31 @@ const README = `# Weather service
 Tiny script that prints the weather. Run \`python app.py\`.
 `;
 
+/** Alpha-blend Gemini's white sparkle into an RGBA image, like the Gemini app does. */
+export function stampGeminiSparkle(rgba, W, H, { size = 48, margin = 96, opacity = 1 } = {}) {
+  const t = geminiTemplates().find((x) => x.size === size && /^(48|96)$/.test(x.name)) || geminiTemplates().find((x) => x.size === size);
+  const x0 = W - margin - size, y0 = H - margin - size;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const a = t.alpha[y * size + x] * opacity;
+    const i = ((y0 + y) * W + (x0 + x)) * 4;
+    for (let c = 0; c < 3; c++) rgba[i + c] = Math.round(a * 255 + (1 - a) * rgba[i + c]);
+  }
+  return rgba;
+}
+
+/** A typical non-AI corner watermark: a translucent rounded badge with a ring. */
+function stampBadge(rgba, W, H) {
+  const cx = W - 120, cy = H - 120, R = 46;
+  for (let y = cy - R - 4; y <= cy + R + 4; y++) for (let x = cx - R - 4; x <= cx + R + 4; x++) {
+    const d = Math.hypot(x - cx, y - cy);
+    const a = d < R - 10 ? 0.28 : d < R ? 0.55 : 0;
+    if (!a) continue;
+    const i = (y * W + x) * 4;
+    for (let c = 0; c < 3; c++) rgba[i + c] = Math.round(a * 255 + (1 - a) * rgba[i + c]);
+  }
+  return rgba;
+}
+
 /** @returns {Promise<{name: string, type: string, bytes: Uint8Array, expect: string, blurb: string}[]>} */
 export async function buildSamples() {
   const seed = b64(SEED_JPEG_B64);
@@ -95,6 +121,26 @@ export async function buildSamples() {
     bytes: jpegWithSegments(seed, [xmpSegment(
       '<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" xmp:CreatorTool="Adobe Firefly" Iptc4xmpExt:DigitalSourceType="http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"/>',
     )]),
+  });
+
+  samples.push({
+    name: 'gemini-sparkle.png', type: 'image/png', expect: 'strong',
+    blurb: 'Gemini visible sparkle watermark — no metadata at all',
+    bytes: await pngFromRGBA(stampGeminiSparkle(proceduralRGBA(1024, 1024, 1.3), 1024, 1024), 1024, 1024),
+  });
+
+  samples.push({
+    name: 'doubao-poster.jpg', type: 'image/jpeg', expect: 'strong',
+    blurb: 'China AIGC metadata label (GB 45438-2025) from Doubao',
+    bytes: jpegWithSegments(seed, [xmpSegment(
+      '<rdf:Description rdf:about="" xmlns:TC260="http://www.tc260.org.cn/ns/AIGC/1.0/"><TC260:AIGC>{&quot;Label&quot;:&quot;1&quot;,&quot;ContentProducer&quot;:&quot;001191110102MACQD9K64010000&quot;,&quot;ProduceID&quot;:&quot;7c1e2a90d4&quot;,&quot;ContentPropagator&quot;:&quot;001191110102MACQD9K64010000&quot;,&quot;PropagateID&quot;:&quot;7c1e2a90d4&quot;}</TC260:AIGC></rdf:Description>',
+    )]),
+  });
+
+  samples.push({
+    name: 'stock-photo-logo.png', type: 'image/png', expect: 'clean',
+    blurb: 'Ordinary corner logo watermark (control — not AI)',
+    bytes: await pngFromRGBA(stampBadge(proceduralRGBA(1200, 900, 0.8), 1200, 900), 1200, 900),
   });
 
   samples.push({

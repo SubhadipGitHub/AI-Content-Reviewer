@@ -9,6 +9,7 @@
  */
 
 export const CATEGORIES = {
+  watermark: 'Visible watermarks',
   provenance: 'Provenance & credentials',
   metadata: 'Metadata fingerprints',
   artifact: 'Chatbot artifacts',

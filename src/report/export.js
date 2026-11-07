@@ -47,7 +47,7 @@ export function toHTML(results) {
       ${findings.length ? findings.map((f) => `<div class="f"><div class="fh"><strong>${e(f.title)}</strong><em class="s-${f.strength}">${f.strength}</em></div>
         <p class="m">${e(CATEGORIES[f.category] || f.category)}${f.where ? ` · ${e(f.where)}` : ''}${f.location ? ` · ${e(f.location)}` : ''}</p>
         ${f.detail ? `<p>${e(f.detail).replace(/\n/g, '<br>')}</p>` : ''}
-        ${(f.evidence || []).map((x) => `<pre>${highlight(x.text, x.ranges)}</pre>`).join('')}</div>`).join('') : '<p class="ok">No AI identifiers found.</p>'}
+        ${(f.evidence || []).map((x) => (x.image && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(x.image) ? `<figure><img src="${x.image}" alt="" style="max-width:320px;image-rendering:pixelated;border-radius:8px"><figcaption class="m">${e(x.text || '')}</figcaption></figure>` : `<pre>${highlight(x.text, x.ranges)}</pre>`)).join('')}</div>`).join('') : '<p class="ok">No AI identifiers found.</p>'}
       ${(r.notes || []).map((n) => `<p class="note">${e(n)}</p>`).join('')}</section>`;
   }).join('');
   const counts = Object.fromEntries(Object.keys(VERDICTS).map((k) => [k, results.filter((r) => r.verdict === k).length]));

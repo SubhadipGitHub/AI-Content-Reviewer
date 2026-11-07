@@ -19,7 +19,9 @@ function summaryLine(node) {
   const strong = f.filter((x) => x.strength === 'strong').length;
   const kids = node.children?.length || 0;
   switch (node.verdict) {
-    case 'strong': return `${strong} hard identifier${strong === 1 ? '' : 's'} ${kids && !strong ? 'inside this file' : ''} show this content was produced or edited with AI tools.`.replace('  ', ' ');
+    case 'strong': return strong
+      ? `${strong} hard identifier${strong === 1 ? ' shows' : 's show'} this content was produced or edited with AI tools.`
+      : 'Hard identifiers inside this file show AI tools were used to produce some of its contents.';
     case 'likely': return 'Several signals point to AI involvement, but no single piece of hard proof was found.';
     case 'possible': return 'Some soft signals were found. They can also occur in human work, so review the evidence.';
     case 'clean': return kids ? `Checked ${plural(countAll(node) - 1, 'embedded item')} — no AI identifiers found.` : 'No AI identifiers were found in metadata, text or structure.';
@@ -46,7 +48,9 @@ function findingsTab(node) {
       ${list.map((f) => html`<article class="finding" style="--i:${i++}">
         <div class="finding-head"><h4>${f.title}</h4>${strengthTag(f.strength)}</div>
         ${f.detail ? html`<div class="detail">${f.detail}</div>` : ''}
-        ${f.evidence?.length ? html`<div class="evidence">${f.evidence.map((e) => html`<code>${raw(highlight(e.text, e.ranges))}</code>`)}</div>` : ''}
+        ${f.evidence?.length ? html`<div class="evidence">${f.evidence.map((e) => e.image && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(e.image)
+          ? html`<figure class="ev-image"><img src="${e.image}" alt="${e.text || 'Evidence image'}" loading="lazy"><figcaption>${e.text || ''}</figcaption></figure>`
+          : html`<code>${raw(highlight(e.text, e.ranges))}</code>`)}</div>` : ''}
         ${f.location ? html`<div class="loc">${raw(icon('search'))}${f.location}</div>` : ''}
         ${f.why ? html`<details class="why"><summary>${raw(icon('chevron-right'))}Why this matters</summary><p>${f.why}</p></details>` : ''}
       </article>`)}
