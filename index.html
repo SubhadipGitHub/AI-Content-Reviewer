@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>AI Content Reviewer</title>
+    <meta name="description" content="Offline, private scanner that flags AI-generation identifiers in documents, spreadsheets, PDFs, images, code and ZIP archives." />
+    <meta name="theme-color" content="#090b16" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Lens" />
+    <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <script>
+      // Apply the stored/system theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem('acr-theme');
+        var dark = t ? t === 'dark' : !matchMedia('(prefers-color-scheme: light)').matches;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
+    <style>
+      /* Boot splash, removed once the app renders */
+      #boot{position:fixed;inset:0;display:grid;place-items:center;background:#090b16;z-index:999;transition:opacity .4s}
+      [data-theme=light] #boot{background:#f4f5fb}
+      #boot i{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#a78bfa,#7c6cff 40%,#22d3ee);animation:b 1.2s ease-in-out infinite;box-shadow:0 10px 40px rgba(124,108,255,.45)}
+      @keyframes b{50%{transform:scale(.86) rotate(8deg);opacity:.7}}
+    </style>
+  </head>
+  <body>
+    <div id="boot" aria-hidden="true"><i></i></div>
+    <noscript><p style="padding:24px;font-family:system-ui">AI Content Reviewer needs JavaScript to run (all processing happens locally in your browser).</p></noscript>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

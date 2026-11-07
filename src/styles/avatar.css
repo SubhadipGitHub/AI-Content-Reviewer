@@ -1,0 +1,52 @@
+.lens-fallback { width: 100%; height: 100%; display: grid; place-items: center; --lc: #8b7bff; }
+.lens-svg { width: 100%; height: 100%; max-height: 100%; overflow: visible; }
+.lens-fallback[data-framing='head'] .lens-svg { transform: scale(1.55) translateY(12%); }
+.lens-svg .l-glow, .lens-svg .l-eye { fill: var(--lc); transition: fill 400ms; }
+.lens-svg .l-happy, .lens-svg .l-x { stroke: var(--lc); opacity: 0; transition: opacity 200ms; }
+.lens-svg .l-open { transform-box: fill-box; transform-origin: center; transition: transform 220ms var(--ease), opacity 200ms; }
+.lens-svg .l-halo { fill: none; stroke: var(--lc); stroke-width: 2.4; stroke-dasharray: 6 10; opacity: 0.7; animation: l-dash 6s linear infinite; }
+.lens-svg .l-shadow { fill: rgba(0, 0, 10, 0.25); transform-origin: 100px 206px; animation: l-shadow 3.6s ease-in-out infinite; }
+.lens-svg .l-root { animation: l-bob 3.6s ease-in-out infinite; transform-origin: 100px 120px; }
+.lens-svg .l-head { transform-origin: 100px 110px; transition: transform 400ms var(--ease); }
+.lens-svg .l-arm-l { transform-origin: 64px 144px; transition: transform 300ms var(--ease); }
+.lens-svg .l-arm-r { transform-origin: 136px 144px; transition: transform 300ms var(--ease); }
+.lens-svg .l-glyph { font: 800 40px var(--font); fill: var(--lc); opacity: 0; transition: opacity 300ms; animation: l-glyph 2.4s ease-in-out infinite; }
+.lens-svg .l-eyes { animation: l-blink 5s infinite; transform-origin: 100px 100px; }
+
+[data-eyes='happy'] .l-open, [data-eyes='x'] .l-open { opacity: 0; }
+[data-eyes='happy'] .l-happy { opacity: 1; }
+[data-eyes='x'] .l-x { opacity: 1; }
+[data-eyes='wide'] .l-open { transform: scale(1.15, 1.3); }
+[data-eyes='narrow'] .l-open { transform: scale(1.2, 0.42); }
+[data-eyes='focus'] .l-open { transform: translate(4px, 3px) scaleY(0.72); }
+[data-eyes='closed'] .l-open { transform: scale(1.25, 0.1); }
+[data-eyes='look'] .l-eyes { animation: l-look 2.6s steps(1) infinite; }
+.lens-fallback:is([data-state='detected'], [data-state='likely'], [data-state='possible'], [data-state='notfound'], [data-state='mixed'], [data-state='sleeping']) .l-glyph { opacity: 1; }
+[data-state='notfound'] .l-head, [data-state='possible'] .l-head { transform: rotate(9deg); }
+[data-state='notfound'] .l-arm-l { transform: rotate(50deg); }
+[data-state='notfound'] .l-arm-r { transform: rotate(-50deg); }
+[data-state='drag'] .l-head { transform: translateY(4px) scale(1.04); }
+[data-state='processing'] .l-halo { animation-duration: 0.9s; stroke-width: 3.2; }
+[data-state='processing'] .l-arm-r { transform: rotate(-40deg); }
+[data-state='sleeping'] .l-root { animation-duration: 6s; }
+[data-state='sleeping'] .l-head { transform: translateY(6px) rotate(-4deg); }
+[data-state='error'] .l-head { transform: translateY(8px) rotate(-6deg); }
+[data-state='error'] .l-eyes { animation: l-flicker 1.4s steps(2) infinite; }
+[data-action='wave'] .l-arm-r { animation: l-wave 2s var(--ease); }
+[data-action='shake'] .l-head { animation: l-shake 0.8s; }
+[data-action='bounce'] .l-root { animation: l-bounce 1.2s var(--ease), l-bob 3.6s 1.2s ease-in-out infinite; }
+[data-action='nod'] .l-head { animation: l-nod 1.1s; }
+[data-action='spin'] .l-root { animation: l-spin 1s var(--ease); }
+
+@keyframes l-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes l-shadow { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(0.86); opacity: 0.7; } }
+@keyframes l-dash { to { stroke-dashoffset: -160; } }
+@keyframes l-glyph { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes l-blink { 0%, 46%, 50%, 100% { transform: scaleY(1); } 48% { transform: scaleY(0.1); } }
+@keyframes l-look { 0% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
+@keyframes l-flicker { 50% { opacity: 0.3; } }
+@keyframes l-wave { 0%, 100% { transform: rotate(0); } 15%, 45%, 75% { transform: rotate(-150deg); } 30%, 60%, 90% { transform: rotate(-120deg); } }
+@keyframes l-shake { 0%, 100% { transform: rotate(0); } 20%, 60% { transform: rotate(-8deg); } 40%, 80% { transform: rotate(8deg); } }
+@keyframes l-bounce { 0%, 50%, 100% { transform: translateY(0); } 25%, 75% { transform: translateY(-22px); } }
+@keyframes l-nod { 0%, 100% { transform: none; } 25%, 75% { transform: translateY(5px) rotate(2deg); } 50% { transform: none; } }
+@keyframes l-spin { to { transform: rotateY(360deg); } }
