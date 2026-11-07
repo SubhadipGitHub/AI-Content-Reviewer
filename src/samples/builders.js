@@ -41,6 +41,48 @@ function pngChunk(type, data) {
   return concat([be32(data.length), body, be32(crc32(body))]);
 }
 
+/** Encode RGBA pixels as a PNG (used for evidence previews and samples). */
+export async function pngFromRGBA(rgba, width, height, text = {}) {
+  const raw = new Uint8Array((width * 4 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 4 + 1)] = 0;
+    raw.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), y * (width * 4 + 1) + 1);
+  }
+  const ihdr = concat([be32(width), be32(height), new Uint8Array([8, 6, 0, 0, 0])]);
+  const chunks = [pngChunk('IHDR', ihdr)];
+  for (const [k, v] of Object.entries(text)) chunks.push(pngChunk('tEXt', concat([encodeUtf8(k), new Uint8Array([0]), encodeUtf8(v)])));
+  chunks.push(pngChunk('IDAT', await deflate(raw)));
+  chunks.push(pngChunk('IEND', new Uint8Array()));
+  return concat([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), ...chunks]);
+}
+
+export function toBase64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** RGBA → PNG data URL. */
+export async function rgbaToDataUrl(rgba, width, height) {
+  return `data:image/png;base64,${toBase64(await pngFromRGBA(rgba instanceof Uint8Array ? rgba : new Uint8Array(rgba.buffer), width, height))}`;
+}
+
+/** Procedural RGBA image (soft radial gradient + waves) for samples. */
+export function proceduralRGBA(width, height, seed = 1) {
+  const out = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4;
+    const dx = x / width - 0.45, dy = y / height - 0.4;
+    const r = Math.sqrt(dx * dx + dy * dy);
+    const w = Math.sin(x * 0.021 * seed + y * 0.013) * 18 + Math.sin(y * 0.031 - x * 0.007) * 14;
+    out[i] = Math.max(0, Math.min(255, 70 + 160 * (1 - r) + w));
+    out[i + 1] = Math.max(0, Math.min(255, 60 + 90 * (y / height) + w * 0.6));
+    out[i + 2] = Math.max(0, Math.min(255, 150 - 80 * (x / width) + w * 0.4));
+    out[i + 3] = 255;
+  }
+  return out;
+}
+
 /** Procedural RGB PNG with optional tEXt chunks. */
 export async function png(width, height, text = {}) {
   const raw = new Uint8Array((width * 3 + 1) * height);

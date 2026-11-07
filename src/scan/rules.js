@@ -1,7 +1,7 @@
 // Versioned signature catalogue. Bump RULES_VERSION whenever signatures change so
 // the Library can offer "re-scan with updated rules".
 
-export const RULES_VERSION = '2026.11.1';
+export const RULES_VERSION = '2026.11.2';
 
 /** Strength weights feed score.js. */
 export const WEIGHTS = { strong: 0.85, moderate: 0.4, weak: 0.12 };
@@ -28,6 +28,7 @@ export const AI_TOOLS = [
   { re: /\bcanva (magic|ai)|magic media\b/i, name: 'Canva Magic Media' },
   { re: /\bplayground ?(ai|v\d)\b|\bnightcafe\b|\bdreamstudio\b|\bartbreeder\b|\bcraiyon\b/i, name: 'AI image service' },
   // text / documents / slides
+  { re: /volcengine|bytedance|doubao|豆包|jimeng|即梦|seedream|seedance/i, name: 'ByteDance Doubao / Jimeng' },
   { re: /\bchatgpt\b|\bopenai\b/i, name: 'ChatGPT / OpenAI' },
   { re: /\bclaude(\.ai)?\b|\banthropic\b/i, name: 'Claude (Anthropic)', loose: true },
   { re: /\bcopilot\b/i, name: 'Microsoft Copilot', loose: true },
@@ -76,7 +77,7 @@ export const PNG_AI_KEYS = [
   { key: /^workflow$/i, tool: 'ComfyUI' },
   { key: /^(dream|sd-metadata|invokeai_metadata|invokeai_graph)$/i, tool: 'InvokeAI' },
   { key: /^(negative_prompt|cfg_scale|sampler|seed)$/i, tool: 'Stable Diffusion UI' },
-  { key: /^(generation_data|ai_metadata|aigc)$/i, tool: 'AI generator' },
+  { key: /^(generation_data|ai_metadata)$/i, tool: 'AI generator' },
 ];
 
 /** Image dimensions frequently produced by generators (only used as a weak, corroborating signal). */

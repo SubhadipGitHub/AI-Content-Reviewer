@@ -7,6 +7,7 @@ const workers = [];
 const idle = [];
 const queue = [];
 const pending = new Map();
+const NO_PIXELS = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nopixels');
 
 function spawn() {
   const w = createWorker();
@@ -46,7 +47,7 @@ function pump() {
     const job = queue.shift();
     job.worker = w;
     pending.set(job.id, job);
-    w.postMessage({ type: 'scan', id: job.id, blob: job.blob, name: job.name });
+    w.postMessage({ type: 'scan', id: job.id, blob: job.blob, name: job.name, noPixels: NO_PIXELS });
   }
 }
 

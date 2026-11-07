@@ -99,8 +99,10 @@ export async function scanBlob(blob, name, opts = {}) {
         bytes = new Uint8Array(head.length + tail.length); bytes.set(head); bytes.set(tail, head.length);
         node.notes.push('Large image: scanned the first 16 MB and last 4 MB for metadata.');
       }
-      const r = await scanImage(bytes, t.format);
+      const r = await scanImage(bytes, t.format, blob);
       node.findings.push(...r.findings);
+      node.notes.push(...(r.notes || []));
+      if (r.needsPixels) node.needsPixels = true;
       node.meta = r.meta;
     } else if (t.kind === 'text') {
       const cap = Math.min(blob.size, LIMITS.textCap);

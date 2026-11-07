@@ -6,6 +6,7 @@ import { uid } from '../lib/format.js';
 import { setAvatarState } from '../avatar/index.js';
 import { toast } from '../ui/toast.js';
 import { RULES_VERSION } from '../scan/rules.js';
+import { scoreNode } from '../scan/score.js';
 
 const STRENGTH_ORDER = { strong: 0, moderate: 1, weak: 2, info: 3 };
 
@@ -81,6 +82,27 @@ const stripTransient = ({ saveRatio, ...r }) => r;
 
 let active = 0;
 
+/**
+ * Some browsers (e.g. Safari before 16.4) can't decode images inside a worker. Run the
+ * visible-watermark check on the main thread instead, then re-score.
+ */
+async function pixelFallback(result, blob) {
+  delete result.needsPixels;
+  try {
+    const [{ cornerPixels }, { detectVisibleMarks }, { rgbaToDataUrl }] = await Promise.all([
+      import('../scan/pixels.js'), import('../scan/detectors/visible-marks.js'), import('../samples/builders.js'),
+    ]);
+    const px = await cornerPixels(blob, null, result.format);
+    if (!px) { result.notes.push(`Visible-watermark check skipped: this browser can't decode ${String(result.format).toUpperCase()} images.`); return; }
+    const v = await detectVisibleMarks(px.data, px.width, px.height, px.W, px.H, rgbaToDataUrl);
+    result.findings.push(...v.findings);
+    if (v.findings.some((f) => f.id === 'watermark.gemini')) result.notes = result.notes.filter((n) => !/SynthID/.test(n));
+    scoreNode(result);
+  } catch (e) {
+    result.notes.push(`Visible-watermark check skipped (${e?.message || e}).`);
+  }
+}
+
 function overallMood() {
   const recs = store.session.map((id) => store.files.get(id)).filter(Boolean);
   const done = recs.filter((r) => r.summary);
@@ -118,6 +140,7 @@ async function runScan(rec, blob) {
       emit();
     });
     result.scannedAt = Date.now();
+    if (result.needsPixels) await pixelFallback(result, blob);
     store.results.set(rec.id, result);
     rec.summary = summarize(result);
     rec.status = result.verdict === 'error' ? 'error' : 'done';

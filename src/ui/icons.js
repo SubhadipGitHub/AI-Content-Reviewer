@@ -15,7 +15,7 @@ export function fileIcon(node) {
 }
 
 export const CATEGORY_ICON = {
-  provenance: 'badge-check', metadata: 'fingerprint', artifact: 'bot', hidden: 'eye', style: 'wand-2',
+  watermark: 'image', provenance: 'badge-check', metadata: 'fingerprint', artifact: 'bot', hidden: 'eye', style: 'wand-2',
   code: 'code-2', repo: 'settings', formula: 'sheet', context: 'info',
 };
 
