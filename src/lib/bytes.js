@@ -113,3 +113,17 @@ export function extractStrings(bytes, min = 6, maxTotal = 2_000_000) {
   if (cur.length >= min) out.push(cur);
   return out.join('\n');
 }
+
+let RAW_DEFLATE_OK = null;
+/** Raw DEFLATE (for ZIP entries). Returns null where the runtime lacks deflate-raw. */
+export async function deflateRaw(bytes) {
+  if (RAW_DEFLATE_OK === false) return null;
+  try {
+    const out = await transformBytes(bytes, new CompressionStream('deflate-raw'));
+    RAW_DEFLATE_OK = true;
+    return out;
+  } catch {
+    RAW_DEFLATE_OK = false;
+    return null;
+  }
+}

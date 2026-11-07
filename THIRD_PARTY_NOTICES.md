@@ -38,4 +38,4 @@ SOFTWARE.
 
 - Lucide icons (ISC). https://lucide.dev
 - Inter font (SIL Open Font License 1.1). See `src/assets/fonts/LICENSE-Inter.txt`.
-- pdf.js (Apache-2.0) and three.js (MIT), bundled from npm.
+- pdf.js (Apache-2.0), pdf-lib (@cantoo/pdf-lib, MIT) and three.js (MIT), bundled from npm.

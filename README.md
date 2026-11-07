@@ -26,6 +26,27 @@ Archives are opened recursively (up to 5 levels), and images embedded in DOCX/PP
 
 > **Signals, not proof.** Identifiers are easy to strip (cropping, screenshots, re-saving, copy-paste into a new file), so "No AI signals" never guarantees human authorship. C2PA signatures are recognised but not cryptographically verified offline. Invisible pixel watermarks (Google SynthID, Meta, OpenAI) can only be verified by their owners. For SynthID, ask the Gemini app "Was this made with Google AI?". Text-only visible labels such as `豆包AI生成` or Meta's "Imagined with AI" would need OCR, which isn't included.
 
+## Cleaning files (removing AI identifiers)
+
+Open a flagged file and choose **Clean**, or use **Clean all** on the results. You pick what to remove and get a cleaned copy (`name-clean.ext`); the original is never modified. Every cleaned copy is scanned again, so the dialog shows an honest before/after score and anything that is still detected.
+
+| Format | What can be removed | How |
+| --- | --- | --- |
+| PNG | Prompts/seeds (A1111, ComfyUI, InvokeAI…), software names, personal text chunks, EXIF, XMP labels, C2PA (`caBX`), TC260 `AIGC` | Lossless chunk rewrite; pixels byte-identical |
+| JPEG | EXIF tags (Software, prompts, GPS, serials; Orientation and camera settings kept), XMP properties, IPTC-IIM, C2PA (APP11), comments | Lossless segment rewrite; scan data byte-identical |
+| WebP | EXIF, XMP, C2PA chunks (VP8X flags fixed) | Lossless chunk rewrite |
+| Gemini sparkle (PNG/JPEG/WebP) | The visible ✦ watermark | Reverse alpha blending with refined size, position and opacity, then re-encode (lossless PNG for PNG, high-quality JPEG/WebP otherwise) |
+| DOCX / XLSX / PPTX / ODF | Chatbot tokens and AI tracking links in text and hyperlinks, hidden characters, generator/app names, AI author/commenter names, AI custom properties, AI formulas → cached values (calc chain rebuilt), embedded images | Package rewrite with DEFLATE |
+| PDF | Producer/Creator, personal Info fields, XMP labels, C2PA attachments, AI tracking links in link annotations | Full rewrite with pdf-lib (no incremental history left behind) |
+| Text, Markdown, code, HTML, notebooks | Tokens, tracking links, hidden characters, `<meta name="generator">`, AI attribution lines and `Co-Authored-By` trailers | Text rewrite |
+| ZIP | Everything above, recursively; AI assistant config files (`.cursorrules`, `CLAUDE.md`, …); unreadable/encrypted entries copied byte-for-byte | Archive rewrite |
+
+**Two tiers.** *Clean-up* items (chatbot tokens, tracking links, hidden characters, prompts, generator names, AI formulas, optional personal metadata) are available straight away. *Disclosure labels* (C2PA Content Credentials, IPTC `DigitalSourceType` and "Made with Google AI", China's TC260 `AIGC` labels, AI author attribution, the visible Gemini sparkle) stay locked until you acknowledge a notice once. You can lock them again in **Guide → Settings**.
+
+> **Use responsibly.** These labels exist to tell people content was made with AI. Removing them can break the law or platform rules — China's GB 45438-2025 prohibits deleting AIGC labels, the EU AI Act requires deepfakes to be disclosed, and many schools, publishers and platforms require AI use to be declared. Only clean your own content, where you have the right to, and never to mislead people about how it was made.
+
+**What can't be removed automatically:** invisible pixel watermarks (Google SynthID, Meta, OpenAI); writing style; assistant phrases such as "As an AI language model…" or "Certainly! Here's…", which are listed with their locations for you to edit, because deleting them changes the meaning; text drawn on PDF pages; and the DALL·E colour bar, which hides the pixels beneath it. Images that were resized after the Gemini mark was added can keep a faint smudge where the sparkle was. On 29 real Gemini outputs, 25 sparkles were found and removed, and the detector no longer sees any of them afterwards.
+
 ## Supported formats
 
 DOCX, XLSX, PPTX, ODT/ODS/ODP, PDF, PNG, JPEG, WebP, GIF, TIFF, HEIC/AVIF (metadata), ZIP/EPUB/JAR, Jupyter notebooks, HTML, Markdown, plain text, CSV/JSON, 40+ source-code languages (including PL/SQL), audio/video metadata (ID3/MP4), and legacy .doc/.xls (string scan only). 7z/RAR/tar.gz aren't unpacked; convert them to ZIP first.
@@ -54,6 +75,7 @@ Architecture:
 
 - `src/scan/` is the detection engine: pure JS that runs in a Web Worker pool in the app and in Node for tests. It includes a streaming ZIP reader on `Blob.slice` + `DecompressionStream`, hand-written PNG/JPEG/EXIF/XMP/C2PA parsers, OOXML/ODF extractors, and pdf.js (legacy build, in-worker) for PDFs. Signatures live in `src/scan/rules.js` (versioned).
 - `src/avatar/` holds Lens, a procedural three.js character (no model files) with 13 states, plus an SVG fallback used when WebGL is unavailable, reduced motion is on, or the "Simple" mascot is chosen.
+- `src/clean/` holds the cleaners: lossless PNG/JPEG/WebP container rewrites, Gemini sparkle removal, Office/PDF/text/archive rewrites, and the catalogue that maps findings to removal options. Everything runs in the worker; pdf-lib loads only when a PDF is cleaned.
 - `src/store/db.js` is the IndexedDB layer. `src/app/store.js` handles state and scan orchestration.
 - `src/ui/`, `src/views/` and `src/styles/` are the vanilla JS UI and the design system (dark/light tokens, responsive from 360 px phones to desktop, keyboard and screen-reader support).
 
@@ -66,4 +88,4 @@ Screenshot/test hooks: `?avatar=<state>` pins the mascot state, and `?nowebgl` f
 
 ## License
 
-MIT. Gemini watermark alpha maps are derived from captures published under MIT by AllenK ([GeminiWatermarkTool](https://github.com/allenk/GeminiWatermarkTool)) and Jad ([gemini-watermark-remover](https://github.com/GargantuaX/gemini-watermark-remover)); see `THIRD_PARTY_NOTICES.md`. Other bundled third-party assets: [Lucide](https://lucide.dev) icons (ISC), [Inter](https://rsms.me/inter/) font (SIL OFL 1.1, see `src/assets/fonts/LICENSE-Inter.txt`), [pdf.js](https://mozilla.github.io/pdf.js/) (Apache-2.0), [three.js](https://threejs.org) (MIT).
+MIT. Gemini watermark alpha maps are derived from captures published under MIT by AllenK ([GeminiWatermarkTool](https://github.com/allenk/GeminiWatermarkTool)) and Jad ([gemini-watermark-remover](https://github.com/GargantuaX/gemini-watermark-remover)); see `THIRD_PARTY_NOTICES.md`. Other bundled third-party assets: [Lucide](https://lucide.dev) icons (ISC), [Inter](https://rsms.me/inter/) font (SIL OFL 1.1, see `src/assets/fonts/LICENSE-Inter.txt`), [pdf.js](https://mozilla.github.io/pdf.js/) (Apache-2.0), [pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (MIT), [three.js](https://threejs.org) (MIT).

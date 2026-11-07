@@ -58,6 +58,7 @@ export function renderLibrary(root) {
       <div class="result" data-id="${r.id}" data-tone="${r.summary ? toneOf(r.summary.verdict) : ''}" style="--i:${Math.min(i, 8)};grid-template-columns:auto 1fr auto auto" role="button" tabindex="0" aria-label="Open ${r.name}">
         ${raw(String(rowInner(r, store.progress.get(r.id), { showTime: true })))}
         <div class="lib-actions">
+          ${(r.stored || store.blobs.has(r.id)) && r.summary && r.summary.verdict !== 'clean' && r.summary.verdict !== 'error' ? html`<button class="btn btn-ghost icon-btn btn-sm" data-clean title="Clean (remove AI identifiers)" aria-label="Clean ${r.name}">${raw(icon('wand-2'))}</button>` : ''}
           ${r.stored ? html`<button class="btn btn-ghost icon-btn btn-sm" data-rescan title="Re-scan${r.summary?.rulesVersion && r.summary.rulesVersion !== RULES_VERSION ? ' with updated rules' : ''}" aria-label="Re-scan ${r.name}">${raw(icon('refresh-cw'))}</button>
           <button class="btn btn-ghost icon-btn btn-sm hide-sm" data-download title="Download original" aria-label="Download ${r.name}">${raw(icon('download'))}</button>` : ''}
           <button class="btn btn-ghost icon-btn btn-sm" data-delete title="Delete" aria-label="Delete ${r.name}">${raw(icon('trash-2'))}</button>
@@ -67,6 +68,7 @@ export function renderLibrary(root) {
     requestAnimationFrame(() => listEl.classList.add('no-anim'));
   }
 
+  on(listEl, 'click', '[data-clean]', async (e, t) => { e.stopPropagation(); const { openCleanDialog } = await import('../ui/clean-dialog.js'); openCleanDialog([t.closest('[data-id]').dataset.id]); });
   on(listEl, 'click', '[data-rescan]', (e, t) => { e.stopPropagation(); rescan(t.closest('[data-id]').dataset.id); });
   on(listEl, 'click', '[data-download]', (e, t) => { e.stopPropagation(); downloadOriginal(t.closest('[data-id]').dataset.id); });
   on(listEl, 'click', '[data-delete]', async (e, t) => {
@@ -78,7 +80,7 @@ export function renderLibrary(root) {
   const open = async (t) => {
     const id = t.dataset.id;
     const r = await getResultFor(id);
-    if (r) openDrawer(r);
+    if (r) openDrawer(r, { id });
   };
   on(listEl, 'click', '.result', (e, t) => open(t));
   on(listEl, 'keydown', '.result', (e, t) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === t) { e.preventDefault(); open(t); } });

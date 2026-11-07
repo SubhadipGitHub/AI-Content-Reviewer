@@ -18,7 +18,7 @@ function spawn() {
     if (msg.type === 'progress') job.onProgress?.(msg);
     else {
       pending.delete(msg.id);
-      msg.type === 'result' ? job.resolve(msg.result) : job.reject(new Error(msg.error));
+      msg.type === 'result' || msg.type === 'cleaned' ? job.resolve(msg.result) : job.reject(new Error(msg.error));
       release(w);
     }
   };
@@ -47,7 +47,7 @@ function pump() {
     const job = queue.shift();
     job.worker = w;
     pending.set(job.id, job);
-    w.postMessage({ type: 'scan', id: job.id, blob: job.blob, name: job.name, noPixels: NO_PIXELS });
+    w.postMessage({ type: job.type || 'scan', id: job.id, blob: job.blob, name: job.name, opts: job.opts, noPixels: NO_PIXELS });
   }
 }
 
@@ -55,6 +55,14 @@ function pump() {
 export function scanInWorker(id, blob, name, onProgress) {
   return new Promise((resolve, reject) => {
     queue.push({ id, blob, name, onProgress, resolve, reject });
+    pump();
+  });
+}
+
+/** Clean a Blob in the pool. Resolves to { bytes, changed, name, report }. */
+export function cleanInWorker(id, blob, name, opts) {
+  return new Promise((resolve, reject) => {
+    queue.push({ type: 'clean', id: `clean:${id}:${Math.random().toString(36).slice(2)}`, blob, name, opts, resolve, reject });
     pump();
   });
 }

@@ -76,6 +76,7 @@ export function renderScan(root) {
       <div class="section-head">
         <h2>Results <span class="count-badge" id="res-count">0</span></h2>
         <div class="spacer"></div>
+        <button class="btn btn-sm hidden" id="clean-all" title="Remove AI identifiers from flagged files">${raw(icon('wand-2'))}Clean all</button>
         <details class="menu" id="export-menu">
           <summary class="btn btn-sm">${raw(icon('download'))}Export</summary>
           <div class="menu-pop card">
@@ -120,6 +121,11 @@ export function renderScan(root) {
   });
   $('#q', view).addEventListener('input', (e) => { filter.q = e.target.value.trim().toLowerCase(); update(); });
   $('#kind', view).addEventListener('change', (e) => { filter.kind = e.target.value; update(); });
+  $('#clean-all', view).addEventListener('click', async () => {
+    const ids = store.session.filter((id) => { const v = store.files.get(id)?.summary?.verdict; return v && v !== 'clean' && v !== 'error'; });
+    const { openCleanDialog } = await import('../ui/clean-dialog.js');
+    openCleanDialog(ids);
+  });
   $('#clear-filter', view).addEventListener('click', () => { filter.verdict = null; filter.q = ''; filter.kind = 'all'; $('#q', view).value = ''; $('#kind', view).value = 'all'; update(); });
   on(view, 'click', '[data-export]', async (e, t) => {
     $('#export-menu', view).open = false;
@@ -134,7 +140,7 @@ export function renderScan(root) {
     const rec = store.files.get(id);
     if (!rec || rec.status === 'scanning' || rec.status === 'queued') return;
     const r = await getResultFor(id);
-    if (r) openDrawer(r);
+    if (r) openDrawer(r, { id });
     else toast({ title: 'Result not available', body: rec.error || 'Try re-scanning from the Library.', tone: 'warning' });
   });
 
@@ -158,6 +164,8 @@ export function renderScan(root) {
     section.hidden = !recs.length;
     hero.classList.toggle('compact', recs.length > 0);
     $('#res-count', view).textContent = recs.length;
+    const flagged = recs.filter((r) => r.summary && r.summary.verdict !== 'clean' && r.summary.verdict !== 'error').length;
+    $('#clean-all', view).classList.toggle('hidden', !flagged || recs.some((r) => r.status === 'scanning'));
     for (const [k] of STAT_DEFS) {
       const b = view.querySelector(`.stat[data-verdict="${k}"]`);
       b.querySelector('[data-n]').textContent = recs.filter((r) => r.summary?.verdict === k).length;
