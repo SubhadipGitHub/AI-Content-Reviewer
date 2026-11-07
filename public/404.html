@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found · AI Content Reviewer</title>
+    <script>
+      // GitHub Pages serves this for unknown paths. Send the visitor back into the app,
+      // which shows its animated 404 state for the missing path.
+      (function () {
+        var p = location.pathname;
+        var base = '/';
+        if (/\.github\.io$/.test(location.hostname)) {
+          var seg = p.split('/')[1];
+          if (seg) base = '/' + seg + '/';
+        }
+        var missing = p.indexOf(base) === 0 ? p.slice(base.length - 1) : p;
+        location.replace(base + '?missing=' + encodeURIComponent(missing + location.search) + '#/404');
+      })();
+    </script>
+    <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#090b16;color:#eceefe;font-family:system-ui,sans-serif}</style>
+  </head>
+  <body><p>Redirecting… <a href="./" style="color:#8b7bff">Open AI Content Reviewer</a></p></body>
+</html>
