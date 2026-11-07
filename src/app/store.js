@@ -1,7 +1,7 @@
 // Application state + scan orchestration. Views subscribe and re-render on change.
 
 import * as db from '../store/db.js';
-import { scanInWorker } from '../scan/client.js';
+import { scanInWorker, cleanInWorker } from '../scan/client.js';
 import { uid } from '../lib/format.js';
 import { setAvatarState } from '../avatar/index.js';
 import { toast } from '../ui/toast.js';
@@ -15,7 +15,8 @@ export const store = {
   files: new Map(),
   results: new Map(),
   progress: new Map(),
-  settings: { theme: 'system', mascot: '3d', keepFiles: true, motion: 'system', onboarded: false },
+  settings: { theme: 'system', mascot: '3d', keepFiles: true, motion: 'system', onboarded: false, labelRemovalAck: false },
+  blobs: new Map(), // this session's File handles (no memory cost) for cleaning
 };
 
 const listeners = new Set();
@@ -168,6 +169,7 @@ export async function addFiles(fileList) {
   for (const f of files) {
     const rec = { id: uid(), name: f.name || 'pasted-file', size: f.size, type: f.type, lastModified: f.lastModified || Date.now(), addedAt: Date.now(), status: 'queued', chunks: 0, stored: false };
     store.files.set(rec.id, rec);
+    store.blobs.set(rec.id, f);
     store.session.unshift(rec.id);
     db.putFile(rec).catch(() => {});
     if (keep) saveChain = saveChain.then(() => persistBlob(rec, f));
@@ -199,6 +201,7 @@ export async function getResultFor(id) {
 export async function removeFile(id) {
   await db.deleteFile(id);
   store.files.delete(id);
+  store.blobs.delete(id);
   store.results.delete(id);
   store.session = store.session.filter((x) => x !== id);
   emit();
@@ -231,4 +234,72 @@ export async function downloadOriginal(id) {
   a.download = rec.name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+
+/** Original Blob for a file: this session's File, else the copy stored in the Library. */
+export async function originalBlob(id) {
+  if (store.blobs.has(id)) return store.blobs.get(id);
+  const rec = store.files.get(id) || (await db.getFile(id));
+  if (!rec?.stored) return null;
+  return db.getBlob(id, rec.chunks, rec.type);
+}
+
+/**
+ * Clean files in the worker pool and verify each output with a fresh scan.
+ * @param {string[]} ids
+ * @param {string[]} items removal item keys
+ * @param {(done: number, total: number) => void} [onProgress]
+ */
+export async function cleanFiles(ids, items, onProgress) {
+  let done = 0;
+  setAvatarState('processing', { caption: ids.length > 1 ? `Cleaning ${ids.length} files…` : 'Cleaning…', sticky: true });
+  const jobs = ids.map(async (id) => {
+    const rec = store.files.get(id);
+    const before = rec?.summary || (await getResultFor(id));
+    const blob = await originalBlob(id);
+    if (!blob) return { id, name: rec?.name, error: 'The original file is not available. Add it again to clean it.' };
+    try {
+      const c = await cleanInWorker(id, blob, rec.name, { items });
+      let after = null;
+      if (c.changed) {
+        const res = await scanInWorker(`verify:${id}`, new Blob([c.bytes]), c.name);
+        after = { score: res.score, verdict: res.verdict, left: topFindings(res, 6).filter((f) => f.strength !== 'weak').slice(0, 4).map((f) => ({ title: f.title, strength: f.strength, where: f.where })) };
+      }
+      return { id, name: rec.name, outName: c.name, bytes: c.bytes, changed: c.changed, report: c.report, before: { score: before?.score ?? 0, verdict: before?.verdict ?? 'clean' }, after };
+    } catch (e) {
+      return { id, name: rec?.name, error: String(e?.message || e) };
+    } finally {
+      onProgress?.(++done, ids.length);
+    }
+  });
+  const results = await Promise.all(jobs);
+  const ok = results.filter((r) => r.changed);
+  const remaining = ok.filter((r) => r.after && r.after.verdict !== 'clean').length;
+  if (!ok.length) setAvatarState('possible', { caption: 'Nothing that could be removed was found.' });
+  else if (remaining) setAvatarState('possible', { caption: `Cleaned ${ok.length} file${ok.length > 1 ? 's' : ''} — some signals need a manual edit.` });
+  else if (ok.length === 1) setAvatarState('clean', { caption: `Cleaned! ${ok[0].before.score} → ${ok[0].after.score}` });
+  else setAvatarState('clean', { caption: `Cleaned ${ok.length} files — no AI identifiers left.` });
+  return results;
+}
+
+/** Add cleaned outputs to the Library (they are scanned like any other file). */
+export function saveCleaned(results) {
+  const files = results.filter((r) => r.changed).map((r) => new File([r.bytes], r.outName, { type: guessMime(r.outName) }));
+  return addFiles(files);
+}
+
+export function guessMime(name) {
+  const e = name.split('.').pop().toLowerCase();
+  return ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', pdf: 'application/pdf', zip: 'application/zip', txt: 'text/plain', md: 'text/markdown', html: 'text/html', json: 'application/json',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })[e] || 'application/octet-stream';
+}
+
+export function downloadBytes(bytes, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type: guessMime(name) }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 20_000);
 }

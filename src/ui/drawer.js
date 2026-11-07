@@ -10,6 +10,7 @@ import { bytes, plural } from '../lib/format.js';
 import { trapFocus } from './modal.js';
 import { exportFile } from '../report/export.js';
 import { setDockVisible } from '../avatar/index.js';
+import { itemFor, ITEMS } from '../clean/catalog.js';
 
 const ORDER = { strong: 0, moderate: 1, weak: 2, info: 3 };
 let current = null;
@@ -52,6 +53,7 @@ function findingsTab(node) {
           ? html`<figure class="ev-image"><img src="${e.image}" alt="${e.text || 'Evidence image'}" loading="lazy"><figcaption>${e.text || ''}</figcaption></figure>`
           : html`<code>${raw(highlight(e.text, e.ranges))}</code>`)}</div>` : ''}
         ${f.location ? html`<div class="loc">${raw(icon('search'))}${f.location}</div>` : ''}
+        ${(() => { const k = itemFor(f, node); return k ? html`<span class="removable ${ITEMS[k].tier === 'B' ? 'tier-b' : ''}" title="${ITEMS[k].label}">${raw(icon('wand-2'))}Removable${ITEMS[k].tier === 'B' ? ' · disclosure label' : ''}</span>` : ''; })()}
         ${f.why ? html`<details class="why"><summary>${raw(icon('chevron-right'))}Why this matters</summary><p>${f.why}</p></details>` : ''}
       </article>`)}
     </section>`)}`;
@@ -112,6 +114,7 @@ function render(state) {
       <div class="file-ic" data-kind="${node.kind}">${raw(icon(fileIcon(node)))}</div>
       <div class="r-main"><div class="r-name" id="drawer-title">${node.name}</div><div class="r-meta"><span>${bytes(node.size)}</span><span>·</span><span>${(node.format || '').toUpperCase()}</span></div></div>
       <div class="spacer"></div>
+      ${state.id && node.verdict !== 'clean' && node.verdict !== 'error' ? html`<button class="btn btn-primary btn-sm" data-clean title="Remove AI identifiers">${raw(icon('wand-2'))}<span class="hide-xs">Clean</span></button>` : ''}
       <button class="btn btn-ghost icon-btn" data-export title="Export this report (JSON)" aria-label="Export report">${raw(icon('download'))}</button>
       <button class="btn btn-ghost icon-btn" data-close aria-label="Close details">${raw(icon('x'))}</button>
     </div>
@@ -127,11 +130,11 @@ function render(state) {
   animateRings(state.el);
 }
 
-export function openDrawer(result, { onClose } = {}) {
+export function openDrawer(result, { onClose, id } = {}) {
   closeDrawer(true);
   const scrim = el('<div class="scrim"></div>');
   const d = el('<aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"></aside>');
-  const state = { stack: [result], tab: 'findings', el: d, prevFocus: document.activeElement, onClose };
+  const state = { stack: [result], tab: 'findings', el: d, prevFocus: document.activeElement, onClose, id };
   current = { scrim, d, state };
   render(state);
   document.body.append(scrim, d);
@@ -152,6 +155,7 @@ export function openDrawer(result, { onClose } = {}) {
   });
   on(d, 'click', '[data-crumb]', (e, t) => { state.stack = state.stack.slice(0, +t.dataset.crumb + 1); render(state); });
   on(d, 'click', '[data-export]', () => exportFile(state.stack[0], 'json'));
+  on(d, 'click', '[data-clean]', async () => { const { openCleanDialog } = await import('./clean-dialog.js'); openCleanDialog([state.id]); });
   d.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeDrawer();
     trapFocus(d, e);

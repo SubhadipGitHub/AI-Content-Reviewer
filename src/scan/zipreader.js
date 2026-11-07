@@ -72,6 +72,8 @@ export async function openZip(blob) {
       dir: name.endsWith('/'),
       method,
       encrypted: !!(flags & 1),
+      flags,
+      crc: u32le(cd, p + 16),
       compSize,
       size: uncompSize,
       localOffset,
@@ -90,7 +92,15 @@ export async function openZip(blob) {
     throw new ZipError(`Unsupported compression method ${entry.method}`);
   }
 
-  return { entries, read };
+  /** Compressed bytes as stored (for copying an entry unchanged into a new archive). */
+  async function readRaw(entry) {
+    const lh = await readRange(blob, entry.localOffset, entry.localOffset + 30);
+    if (u32le(lh, 0) !== LOC_SIG) throw new ZipError('Corrupt local header');
+    const start = entry.localOffset + 30 + u16le(lh, 26) + u16le(lh, 28);
+    return readRange(blob, start, start + entry.compSize);
+  }
+
+  return { entries, read, readRaw };
 }
 
 /** Quick check whether a Blob looks like a ZIP. */

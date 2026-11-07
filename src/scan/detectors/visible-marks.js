@@ -99,6 +99,23 @@ export function geminiTemplates() {
   return list;
 }
 
+const ALPHA_CACHE = new Map();
+/** Alpha map of a base Gemini template ('48', '96', '96-v2', '36-v2') resampled to any size. */
+export function alphaAt(base, size) {
+  const key = `${base}@${size}`;
+  if (!ALPHA_CACHE.has(key)) {
+    const src = GEMINI_ALPHA_B64[base === '96-v2' ? '96-20260520' : base];
+    const bytes = b64bytes(src.data);
+    const f = new Float32Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) f[i] = bytes[i] / 255;
+    ALPHA_CACHE.set(key, resample(f, src.size, size));
+  }
+  return ALPHA_CACHE.get(key);
+}
+
+/** Which base alpha map a template was derived from. */
+export const templateBase = (name) => (name.startsWith('96@') ? '96' : name);
+
 // ───────── image helpers ─────────
 function luminance(rgba, w, h) {
   const out = new Float32Array(w * h);
