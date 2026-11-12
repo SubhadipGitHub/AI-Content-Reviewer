@@ -1,6 +1,6 @@
 import { el, html, raw, on, $ } from '../lib/dom.js';
 import { icon } from '../ui/icons.js';
-import { store, subscribe, addFiles, getResultFor } from '../app/store.js';
+import { store, subscribe, addFiles, getResultFor, rescan } from '../app/store.js';
 import { rowInner, animateRings, toneOf, guessKind } from '../ui/render.js';
 import { openDrawer } from '../ui/drawer.js';
 import { mountAvatar, setAvatarState, avatarState } from '../avatar/index.js';
@@ -135,7 +135,10 @@ export function renderScan(root) {
   });
   const closeMenu = (e) => { const m = $('#export-menu', view); if (m?.open && !m.contains(e.target)) m.open = false; };
   document.addEventListener('click', closeMenu);
+  on(list, 'click', '[data-retry]', (e, t) => { e.stopPropagation(); rescan(t.closest('.result').dataset.id); });
+  on(list, 'keydown', '[data-retry]', (e, t) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); rescan(t.closest('.result').dataset.id); } });
   on(list, 'click', '.result', async (e, t) => {
+    if (e.target.closest('[data-retry]')) return;
     const id = t.dataset.id;
     const rec = store.files.get(id);
     if (!rec || rec.status === 'scanning' || rec.status === 'queued') return;
@@ -186,7 +189,7 @@ export function renderScan(root) {
       }
       if (node.dataset.sig !== sig) {
         node.dataset.sig = sig;
-        node.innerHTML = String(rowInner(rec, store.progress.get(rec.id)));
+        node.innerHTML = String(rowInner(rec, store.progress.get(rec.id), { canRetry: store.blobs.has(rec.id) || !!rec.stored }));
         node.classList.toggle('scanning', rec.status === 'scanning' || rec.status === 'queued');
         node.dataset.tone = rec.summary ? toneOf(rec.summary.verdict) : '';
         node.setAttribute('aria-label', `${rec.name}${rec.summary ? `, ${rec.summary.verdict}, score ${rec.summary.score}` : ', scanning'}`);

@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
               maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
               navigateFallback: 'index.html',
               cleanupOutdatedCaches: true,
+              clientsClaim: true,
             },
           }),
         ],

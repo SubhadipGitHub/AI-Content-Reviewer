@@ -1,7 +1,7 @@
 // Application state + scan orchestration. Views subscribe and re-render on change.
 
 import * as db from '../store/db.js';
-import { scanInWorker, cleanInWorker } from '../scan/client.js';
+import { scanInWorker, cleanInWorker, retryWorkers } from '../scan/client.js';
 import { uid } from '../lib/format.js';
 import { setAvatarState } from '../avatar/index.js';
 import { toast } from '../ui/toast.js';
@@ -182,11 +182,15 @@ export async function rescan(id) {
   const rec = store.files.get(id) || (await db.getFile(id));
   if (!rec) return;
   store.files.set(id, rec);
-  if (!rec.stored) { toast({ title: 'Original file not stored', body: 'Add the file again to re-scan it.', tone: 'warning' }); return; }
-  const blob = await db.getBlob(id, rec.chunks, rec.type);
-  if (!blob) { toast({ title: 'Stored file is incomplete', tone: 'warning' }); return; }
+  const blob = await originalBlob(id);
+  if (!blob) {
+    toast({ title: rec.stored ? 'Stored file is incomplete' : 'Original file not stored', body: 'Add the file again to re-scan it.', tone: 'warning' });
+    return;
+  }
   if (!store.session.includes(id)) store.session.unshift(id);
   delete rec.summary;
+  delete rec.error;
+  retryWorkers();
   store.results.delete(id);
   await runScan(rec, blob);
 }

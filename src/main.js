@@ -18,6 +18,7 @@ import { initInstall, onInstallChange, promptInstall } from './ui/install.js';
 import { toast } from './ui/toast.js';
 import { closeDrawer } from './ui/drawer.js';
 import { registerPWA } from '#pwa';
+import { warmUp } from './scan/client.js';
 
 const NAV = [
   ['#/', 'Scan', 'scan-search'],
@@ -202,6 +203,11 @@ async function boot() {
       if (!store.session.length) setAvatarState('offline');
     },
   });
+  // Fetch the scan worker while online so it is cached before the user goes offline.
+  if (location.protocol.startsWith('http') && navigator.onLine) {
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+    idle(() => warmUp(), { timeout: 4000 });
+  }
   addEventListener('offline', () => toast({ title: 'You\'re offline', body: 'No problem — scanning works fully offline.', tone: 'info', icon: 'wifi-off' }));
 }
 
