@@ -32,3 +32,6 @@ self.onmessage = async (e) => {
     self.postMessage({ type: 'error', id, error: String(err?.message || err) });
   }
 };
+
+// Tell the pool this worker loaded and started (lets it detect start-up failures).
+self.postMessage({ type: 'ready' });

@@ -39,7 +39,7 @@ export function strengthTag(s) {
 const STAGE = { queued: 'Queued', scanning: 'Scanning' };
 
 /** Inner markup of a result row for a file record. */
-export function rowInner(rec, progress, { showTime = false } = {}) {
+export function rowInner(rec, progress, { showTime = false, canRetry = false } = {}) {
   const s = rec.summary;
   const node = { kind: s?.kind || guessKind(rec.name), format: s?.format || ext(rec.name) };
   const scanning = rec.status === 'scanning' || rec.status === 'queued';
@@ -51,7 +51,8 @@ export function rowInner(rec, progress, { showTime = false } = {}) {
     sub = html`<div class="r-top">${p.stage || STAGE[rec.status]}${p.detail ? html` · <span class="muted">${p.detail}</span>` : ''}</div>
       <div class="progress ${ratio == null ? 'indeterminate' : ''}" style="--p:${ratio == null ? 30 : Math.round(ratio * 100)}%"><i></i></div>`;
   } else if (rec.status === 'error' && !s?.top?.length) {
-    sub = html`<div class="r-top muted">${rec.error ? `Could not scan: ${rec.error}` : 'Scan interrupted — re-scan from the Library.'}</div>`;
+    sub = html`<div class="r-top muted">${rec.error ? `Could not scan: ${rec.error}` : 'Scan interrupted.'}</div>
+      ${canRetry ? html`<span class="btn btn-sm retry" role="button" tabindex="0" data-retry>${raw(icon('refresh-cw'))}Retry</span>` : ''}`;
   } else if (s?.top?.length) {
     const t = s.top[0];
     sub = html`<div class="r-top">${t.title}${t.where ? html` <span class="muted">in ${t.where}</span>` : ''}${s.findings > 1 ? html` <span class="muted">+${s.findings - 1} more</span>` : ''}</div>`;

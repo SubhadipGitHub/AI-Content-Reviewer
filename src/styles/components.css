@@ -492,3 +492,5 @@ body:has(.avatar-dock) .main { padding-bottom: 150px; }
 @keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
 @media (max-width: 720px) { .clean-foot .btn { flex: 1 1 auto; } .clean-foot .spacer { display: none; } }
 @media (max-width: 420px) { .hide-xs { display: none; } }
+.result .retry { justify-self: start; margin-top: 6px; min-height: 30px; }
+.result .retry svg { width: 14px; height: 14px; }
